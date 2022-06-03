@@ -2,6 +2,7 @@ package pl.edu.pja.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import pl.edu.pja.Datasource
-import pl.edu.pja.ItemModel
+import pl.edu.pja.models.ItemModel
 import pl.edu.pja.R
 import pl.edu.pja.ui.theme.WhishlistTheme
 
@@ -41,7 +42,7 @@ fun MainScreen(navController: NavController) {
             },
             floatingActionButton = {
                 FloatingActionButton(
-                    onClick = { navController.navigate(Screen.AddScreen.route) },
+                    onClick = { navController.navigate(Screen.AddEditScreen.urlFromArgs("ADD", -1)) },
                     backgroundColor = MaterialTheme.colors.primary,
                     content = {
                         Icon(
@@ -56,38 +57,41 @@ fun MainScreen(navController: NavController) {
             Surface(
                 modifier = Modifier.padding(contentPadding)
             ) {
-                ItemList(products = Datasource.items)
+                ItemList(products = Datasource.items, navController)
             }
         }
     }
 }
 
 @Composable
-fun ItemList(products: List<ItemModel>) {
+fun ItemList(products: List<ItemModel>, navController: NavController) {
     LazyColumn {
         items(products) { product ->
             Item(
-                destination = product.address,
-                name = product.name,
-                image = product.image
+                product = product,
+                navController = navController
             )
         }
     }
 }
 
 @Composable
-fun Item(destination: String, name: String, image: Int) {
+fun Item(product: ItemModel, navController: NavController) {
+
     Card(
         elevation = 5.dp,
         modifier = Modifier
             .fillMaxWidth()
             .padding(all = 10.dp)
+            .clickable {
+                navController.navigate(Screen.AddEditScreen.urlFromArgs("EDIT", product.id))
+            }
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
-                painter = painterResource(image),
+                painter = painterResource(product.image),
                 contentDescription = "chair",
                 modifier = Modifier
                     .size(80.dp)
@@ -98,10 +102,11 @@ fun Item(destination: String, name: String, image: Int) {
             Column(
                 horizontalAlignment = Alignment.Start
             ) {
-                Text(text = name)
+                Text(text = product.description)
                 Spacer(modifier = Modifier.height(10.dp))
-                Text(text = destination)
+                Text(text = product.address)
             }
         }
     }
+
 }
