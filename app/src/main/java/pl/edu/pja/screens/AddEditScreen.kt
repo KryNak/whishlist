@@ -1,17 +1,23 @@
 package pl.edu.pja.screens
 
 import android.location.Geocoder
+import android.util.Log
+import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -26,8 +32,10 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import pl.edu.pja.Database
 import pl.edu.pja.Datasource
 import pl.edu.pja.R
+import pl.edu.pja.models.ItemEntity
 import pl.edu.pja.models.ItemModel
 import pl.edu.pja.ui.theme.WhishlistTheme
 
@@ -88,12 +96,12 @@ fun Body(
 
     var description by remember {
         mutableStateOf(
-            Datasource.items.find { it.id == itemId }?.description ?: ""
+            Database.db.itemDao().findById(itemId)?.productDescription ?: ""
         )
     }
     var address by remember {
         mutableStateOf(
-            Datasource.items.find { it.id == itemId }?.address ?: ""
+            Database.db.itemDao().findById(itemId)?.address ?: ""
         )
     }
 
@@ -122,12 +130,22 @@ fun Body(
                     modifier = Modifier.fillMaxSize(),
                     cameraPositionState = cameraPositionState,
                     onMapClick = {
-                        Geocoder(localContext).getFromLocation(it.latitude, it.longitude, 1)
+                        val fromLocation =
+                            Geocoder(localContext).getFromLocation(it.latitude, it.longitude, 1)[0]
+                        val newAddress =
+                            "ul. ${fromLocation.getAddressLine(0)}"
+                        Toast.makeText(
+                            localContext,
+                            "Twoja lokalizacja zostanie ustawiona na $newAddress",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        address = newAddress
+                        Log.i("Debug", "$fromLocation")
                     }
                 ) {
                     Marker(
                         position = markerPosition,
-                        title = "Current position",
+                        title = "Reference position",
                         snippet = "Polish Japanese Academy of Information Technology"
                     )
                 }
@@ -137,8 +155,16 @@ fun Body(
                             bottomSheetScaffoldState.bottomSheetState.collapse()
                         }
                     }
-                }) {
-                    Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = "")
+                },
+                    modifier = Modifier.clickable {}
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "",
+                        modifier = Modifier
+                            .background(Color.White, shape = CircleShape)
+                            .clip(CircleShape)
+                    )
                 }
             }
 
@@ -212,7 +238,7 @@ fun EditRow(navController: NavController, address: String, description: String, 
     ) {
         Button(
             onClick = {
-                Datasource.items.removeIf { it.id == itemId }
+                Database.db.itemDao().deleteById(itemId)
                 navController.navigate(Screen.MainScreen.route) { popUpTo(0) }
             },
             colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.error)
@@ -248,10 +274,7 @@ fun AddRow(navController: NavController, address: String, description: String) {
     ) {
         Button(
             onClick = {
-                Datasource.items.add(ItemModel(Datasource.items.maxOf { it.id } + 1,
-                    description,
-                    address,
-                    R.drawable.ic_add))
+                Database.db.itemDao().insertAll(ItemEntity(productDescription = description, address = address))
                 navController.navigate(Screen.MainScreen.route) { popUpTo(0) }
             },
         ) {

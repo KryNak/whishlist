@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -13,14 +14,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import androidx.room.Room
+import pl.edu.pja.AppDatabase
+import pl.edu.pja.Database
 import pl.edu.pja.Datasource
 import pl.edu.pja.models.ItemModel
 import pl.edu.pja.R
+import pl.edu.pja.models.ItemEntity
 import pl.edu.pja.ui.theme.WhishlistTheme
 
 @Preview
@@ -31,6 +37,15 @@ fun MainScreenPreview() {
 
 @Composable
 fun MainScreen(navController: NavController) {
+    val applicationContext = LocalContext.current
+    Database.db = Room.databaseBuilder(
+        applicationContext,
+        AppDatabase::class.java, "prm2"
+    )
+        .fallbackToDestructiveMigration()
+        .allowMainThreadQueries()
+        .build()
+
     WhishlistTheme {
         Scaffold(
             topBar = {
@@ -42,7 +57,14 @@ fun MainScreen(navController: NavController) {
             },
             floatingActionButton = {
                 FloatingActionButton(
-                    onClick = { navController.navigate(Screen.AddEditScreen.urlFromArgs("ADD", -1)) },
+                    onClick = {
+                        navController.navigate(
+                            Screen.AddEditScreen.urlFromArgs(
+                                "ADD",
+                                -1
+                            )
+                        )
+                    },
                     backgroundColor = MaterialTheme.colors.primary,
                     content = {
                         Icon(
@@ -57,14 +79,14 @@ fun MainScreen(navController: NavController) {
             Surface(
                 modifier = Modifier.padding(contentPadding)
             ) {
-                ItemList(products = Datasource.items, navController)
+                ItemList(products = Database.db.itemDao().getAll(), navController)
             }
         }
     }
 }
 
 @Composable
-fun ItemList(products: List<ItemModel>, navController: NavController) {
+fun ItemList(products: List<ItemEntity>, navController: NavController) {
     LazyColumn {
         items(products) { product ->
             Item(
@@ -76,7 +98,7 @@ fun ItemList(products: List<ItemModel>, navController: NavController) {
 }
 
 @Composable
-fun Item(product: ItemModel, navController: NavController) {
+fun Item(product: ItemEntity, navController: NavController) {
 
     Card(
         elevation = 5.dp,
@@ -84,25 +106,25 @@ fun Item(product: ItemModel, navController: NavController) {
             .fillMaxWidth()
             .padding(all = 10.dp)
             .clickable {
-                navController.navigate(Screen.AddEditScreen.urlFromArgs("EDIT", product.id))
+                navController.navigate(Screen.AddEditScreen.urlFromArgs("EDIT", product.uid))
             }
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
-                painter = painterResource(product.image),
+                painter = painterResource(R.drawable.ferrari),
                 contentDescription = "chair",
                 modifier = Modifier
                     .size(80.dp)
                     .clip(RectangleShape)
-                    .border(1.5.dp, MaterialTheme.colors.secondary)
+                    .padding(2.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
             Column(
                 horizontalAlignment = Alignment.Start
             ) {
-                Text(text = product.description)
+                Text(text = product.productDescription)
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(text = product.address)
             }
