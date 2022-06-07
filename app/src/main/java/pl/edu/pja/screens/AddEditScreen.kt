@@ -1,25 +1,29 @@
-@file:OptIn(ExperimentalMaterialApi::class)
-
 package pl.edu.pja.screens
 
+import android.location.Geocoder
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.maps.android.compose.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import pl.edu.pja.Datasource
@@ -47,10 +51,7 @@ fun AddEditScreen(navController: NavController, mode: String, itemId: Int) {
 
 @Composable
 fun AppScaffold(navController: NavController, mode: String, itemId: Int) {
-    val bottomSheetScaffoldState = rememberBottomSheetScaffoldState(
-        bottomSheetState = BottomSheetState(BottomSheetValue.Collapsed)
-    )
-    val coroutineScope = rememberCoroutineScope()
+
 
     WhishlistTheme {
         Scaffold(
@@ -58,24 +59,6 @@ fun AppScaffold(navController: NavController, mode: String, itemId: Int) {
                 TopAppBar(
                     title = {
                         Text(text = "Whishlist")
-                    },
-                    actions = {
-                        IconButton(
-                            onClick = {
-                                if (!bottomSheetScaffoldState.bottomSheetState.isCollapsed) {
-                                    coroutineScope.launch {
-                                        bottomSheetScaffoldState.bottomSheetState.collapse()
-                                    }
-                                }
-                            }
-                        ) {
-                            if (!bottomSheetScaffoldState.bottomSheetState.isCollapsed) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = ""
-                                )
-                            }
-                        }
                     }
                 )
             }
@@ -86,9 +69,7 @@ fun AppScaffold(navController: NavController, mode: String, itemId: Int) {
                 Body(
                     navController = navController,
                     mode = mode,
-                    itemId = itemId,
-                    bottomSheetScaffoldState = bottomSheetScaffoldState,
-                    coroutineScope = coroutineScope
+                    itemId = itemId
                 )
             }
         }
@@ -100,10 +81,10 @@ fun AppScaffold(navController: NavController, mode: String, itemId: Int) {
 fun Body(
     navController: NavController,
     mode: String,
-    itemId: Int,
-    bottomSheetScaffoldState: BottomSheetScaffoldState,
-    coroutineScope: CoroutineScope
+    itemId: Int
 ) {
+
+    val focusManager = LocalFocusManager.current
 
     var description by remember {
         mutableStateOf(
@@ -116,10 +97,17 @@ fun Body(
         )
     }
 
-    val markerPosition = LatLng(1.35, 103.87)
+    val bottomSheetScaffoldState = rememberBottomSheetScaffoldState(
+        bottomSheetState = BottomSheetState(BottomSheetValue.Collapsed)
+    )
+    val coroutineScope = rememberCoroutineScope()
+
+    var markerPosition = LatLng(52.223830, 20.993940)
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(markerPosition, 15f)
     }
+
+    val localContext = LocalContext.current
 
     BottomSheetScaffold(
         scaffoldState = bottomSheetScaffoldState,
@@ -132,19 +120,36 @@ fun Body(
             ) {
                 GoogleMap(
                     modifier = Modifier.fillMaxSize(),
-                    cameraPositionState = cameraPositionState
+                    cameraPositionState = cameraPositionState,
+                    onMapClick = {
+                        Geocoder(localContext).getFromLocation(it.latitude, it.longitude, 1)
+                    }
                 ) {
                     Marker(
                         position = markerPosition,
-                        title = "Your Title",
-                        snippet = "Place Name"
+                        title = "Current position",
+                        snippet = "Polish Japanese Academy of Information Technology"
                     )
+                }
+                IconButton(onClick = {
+                    if (!bottomSheetScaffoldState.bottomSheetState.isCollapsed) {
+                        coroutineScope.launch {
+                            bottomSheetScaffoldState.bottomSheetState.collapse()
+                        }
+                    }
+                }) {
+                    Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = "")
                 }
             }
 
         },
         sheetPeekHeight = 0.dp,
-        sheetGesturesEnabled = false
+        sheetGesturesEnabled = false,
+        modifier = Modifier.pointerInput(Unit) {
+            detectTapGestures {
+                focusManager.clearFocus()
+            }
+        }
     ) {
 
         Column(
@@ -159,15 +164,18 @@ fun Body(
                     description = it
                 },
                 label = { Text(text = "Description") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
             OutlinedTextField(
                 value = address,
                 onValueChange = {
-                    address = ""
+                    focusManager.clearFocus(true)
                 },
                 label = { Text(text = "Location") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = false) {},
                 trailingIcon = {
                     Icon(imageVector = Icons.Default.LocationOn,
                         contentDescription = "",
